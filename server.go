@@ -4,17 +4,19 @@ import (
 	"bufio"
 	"database/sql"
 	"fmt"
-	"golang.org/x/crypto/bcrypt"
 	"net"
 	"strings"
 	"sync"
-  _ "github.com/mattn/go-sqlite3"
+
+	_ "github.com/mattn/go-sqlite3"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type connection struct {
 	conn     net.Conn
 	username string
 }
+
 var (
 	clients      = make(map[net.Conn]*connection)
 	clientsMutex sync.Mutex
@@ -38,8 +40,6 @@ func initDB() {
 		fmt.Println("Error creating table:", err)
 	}
 }
-
-
 func userExists(username string) bool {
 	var count int
 	err := db.QueryRow("SELECT COUNT(*) FROM users WHERE username = ?", username).Scan(&count)
@@ -68,7 +68,7 @@ func authenticateUser(username, password string) bool {
 		if err == sql.ErrNoRows {
 			return false
 		}
-    fmt.Println("Error quering user: ", err)
+		fmt.Println("Error querying user: ", err)
 		return false
 	}
 
@@ -98,7 +98,7 @@ func handleConnection(conn net.Conn) {
 	password = strings.TrimSpace(password)
 
 	if userExists(username) {
-		if authenticateUser(username, password){
+		if authenticateUser(username, password) {
 			client := &connection{conn: conn, username: username}
 			clientsMutex.Lock()
 			clients[conn] = client
@@ -119,29 +119,28 @@ func handleConnection(conn net.Conn) {
 			clientsMutex.Unlock()
 
 			handleBroadcast(nil, fmt.Sprintf("%s has left the chat.\n", client.username))
-		}else{
-    fmt.Fprintln(conn, "Invalid Credentials")
-    }
-  }else{
-    fmt.Fprintln(conn, "User doesn't exist, would you like to create a new ID? [yes/y/no/n]")
-    response, err := reader.ReadString('\n')
-    if err != nil{
-      fmt.Println("Error reading response: ", err)
-      return
-    }
-    response = strings.TrimSpace(response)
-    if strings.ToLower(response) == "yes" || strings.ToLower(response) == "y"{
-      err := createNewUser(username, password)
-      if err != nil{
-        fmt.Println("Error regsitering user: ", err)
-        return
-      }
-      fmt.Fprintln(conn, "User Registered Successfully, Login Again")
-    }else{
-      fmt.Fprintln(conn, "invalid choice, exiting!")
-    }
-  }
-
+		} else {
+			fmt.Fprintln(conn, "Invalid Credentials")
+		}
+	} else {
+		fmt.Fprintln(conn, "User doesn't exist, would you like to create a new ID? [yes/y/no/n]")
+		response, err := reader.ReadString('\n')
+		if err != nil {
+			fmt.Println("Error reading response: ", err)
+			return
+		}
+		response = strings.TrimSpace(response)
+		if strings.ToLower(response) == "yes" || strings.ToLower(response) == "y" {
+			err := createNewUser(username, password)
+			if err != nil {
+				fmt.Println("Error regsitering user: ", err)
+				return
+			}
+			fmt.Fprintln(conn, "User Registered Successfully, Login Again")
+		} else {
+			fmt.Fprintln(conn, "invalid choice, exiting!")
+		}
+	}
 
 }
 
@@ -160,8 +159,8 @@ func handleBroadcast(sender net.Conn, message string) {
 }
 
 func main() {
-  initDB()
-  defer db.Close()
+	initDB()
+	defer db.Close()
 	listener, err := net.Listen("tcp", "localhost:8080")
 	if err != nil {
 		fmt.Println("Error listening to server: ", err)
